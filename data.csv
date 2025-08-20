@@ -1,0 +1,6 @@
+id,text,label
+1,This product is good,positive
+2,Service was terrible,negative
+3,Experience was okay,neutral
+4,The UI looks great,positive
+5,The battery life is the worst,negative
