@@ -1,48 +1,43 @@
 name: Deploy with Ngrok
 
 on:
-  workflow_dispatch:  # run manually
+  workflow_dispatch:  # Manual trigger
 
 jobs:
   run-server:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
 
-      - name: Install system tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install numpy pandas flask tensorflow
 
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+    - name: Install ngrok
+      run: |
+        npm install -g ngrok
 
-      - name: Install ngrok
-        run: npm install -g ngrok
+    - name: Start app in background
+      run: |
+        python app.py &
+        sleep 5  # give server time to start
 
-      - name: Start Flask app
-        run: |
-          python app.py > app.log 2>&1 &
-          sleep 8
+    - name: Start ngrok tunnel
+      env:
+        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+      run: |
+        ngrok authtoken $NGROK_AUTH_TOKEN
+        ngrok http 5000 > ngrok.log &
+        sleep 5
+        curl --silent http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[0].public_url'
 
-      - name: Start ngrok tunnel and print public URL
-        env:
-          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
-        run: |
-          ngrok authtoken "$NGROK_AUTH_TOKEN"
-          ngrok http 5000 > ngrok.log 2>&1 &
-          sleep 8
-          echo "Public URL:"
-          curl -s http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[0].public_url'
-
-      - name: Keep alive (10 minutes)
-        run: sleep 600
+    - name: Keep alive
+      run: sleep 10m
